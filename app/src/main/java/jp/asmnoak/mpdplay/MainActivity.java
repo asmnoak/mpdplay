@@ -70,6 +70,9 @@ public class MainActivity extends AppCompatActivity {
         public void setChecked(int position, boolean b) {
             list.get(position).checked = b;
         }
+        public void setList(List<Item> list){
+            this.list = list;
+        }
         @Override
         public int getCount() {
             return list.size();
@@ -176,11 +179,27 @@ public class MainActivity extends AppCompatActivity {
             case R.id.album:
                 return  true;
             case R.id.artist:
+                ArrayList<MusicItem> ml = new ArrayList<>();
+                MusicItem mi=null;
+                for (MusicItem m:musiclist) {
+                    if(mi==null || !mi.artist.equals(m.artist)) {
+                        ml.add(m);
+                        mi=m;
+                    }
+                }
+                initItems(ml);
+                myItemsListAdapter.setList(items);;
+                myItemsListAdapter.notifyDataSetChanged();
                 return  true;
         }
         return  super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Main onCreate
+     *
+     * @param savedInstanceState
+     */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -198,10 +217,9 @@ public class MainActivity extends AppCompatActivity {
             musiclist = new ArrayList<>();
             MusicItem mi = new MusicItem("nofile.mp3","noname","noname","noname",0,0);
             musiclist.add(mi);
-            initItems();
+            initItems(musiclist);
         } else {
-            initMusicList();
-            initItems();
+            initItems(initMusicList(rcvdata));
         }
         myItemsListAdapter = new ItemsListAdapter(this, items);
         listView.setAdapter(myItemsListAdapter);
@@ -333,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void initMusicList() {
+    private ArrayList<MusicItem> initMusicList(String rcvdata) {
         String fn = "";
         String art = "";
         String tl = "";
@@ -362,6 +380,7 @@ public class MainActivity extends AppCompatActivity {
             MusicItem mi = new MusicItem(fn,art,al,tl,t,tr);
             musiclist.add(mi);
         }
+        return musiclist;
     }
 
    synchronized  private void doCommand(String cm){
@@ -377,23 +396,25 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-    private void initItems(){
+
+    /**
+     * To construct items(input for myItemsListAdapter) of musiclist.
+     *
+     * @param musiclist   music info
+     *
+     */
+    private void initItems(ArrayList<MusicItem> musiclist){
         items = new ArrayList<Item>();
-        //ArrayList<String> artxt = new ArrayList<String>();
-        //String[] ar = rcvdata.split(";");
 
         //TypedArray arrayDrawable = getResources().obtainTypedArray(R.array.resicon);
         //TypedArray arrayText = getResources().obtainTypedArray(R.array.restext);
 
         for(int i=0; i<musiclist.size(); i++){
-            Drawable d;
-            //if (i<5) d = arrayDrawable.getDrawable(i);
-            //else d=null;
-            d = getResources().getDrawable(R.drawable.icon_onpu_64);
-            //String s = arrayText.getString(i);
+            Drawable drw;
+            drw = getResources().getDrawable(R.drawable.icon_onpu_64);
             String s = musiclist.get(i).artist + ":" +musiclist.get(i).album + ":" + musiclist.get(i).title;
             boolean b = false;
-            Item item = new Item(d, s, b);
+            Item item = new Item(drw, s, b);
             items.add(item);
         }
 
