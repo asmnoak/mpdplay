@@ -3,8 +3,6 @@ package jp.asmnoak.mpdplay;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.content.res.TypedArray;
-import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -61,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         private Context context;
         private List<Item> list;
-        private LayoutInflater inflater;   ////
+        private LayoutInflater inflater;   // field
 
         ItemsListAdapter(Context c, List<Item> l) {
             context = c;
@@ -99,7 +97,6 @@ public class MainActivity extends AppCompatActivity {
             // reuse views
             ViewHolder viewHolder = new ViewHolder();
             if (rowView == null) {
-                //LayoutInflater inflater = ((Activity) context).getLayoutInflater();
                 inflater = ((Activity) context).getLayoutInflater();
                 rowView = inflater.inflate(R.layout.row, null);
 
@@ -136,6 +133,32 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
             */
+            viewHolder.text.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    ////
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            //text.setText(itemStr);
+                            String[] sar = itemStr.split(":");
+                            String str = sar[1];
+                            ArrayList<MusicItem> ml = new ArrayList<>();
+                            for (MusicItem m:musiclist) {
+                                if(str.equals(m.album)) {
+                                    ml.add(m);
+                                }
+                            }
+                            initItems(ml);
+                            myItemsListAdapter.setList(items);;
+                            myItemsListAdapter.notifyDataSetChanged();
+                        }
+                    });
+                    Toast.makeText(getApplicationContext(),
+                            itemStr + "：アルバム",
+                            Toast.LENGTH_LONG).show();
+                }
+            });
 
             viewHolder.checkBox.setOnClickListener(new View.OnClickListener() {
                 @Override
@@ -144,7 +167,7 @@ public class MainActivity extends AppCompatActivity {
                     list.get(position).checked = newState;
                     ////
                      Toast.makeText(getApplicationContext(),
-                            itemStr + "setOnClickListener\nchecked: " + newState,
+                            itemStr + "：チェック",
                             Toast.LENGTH_LONG).show();
                 }
             });
@@ -171,16 +194,32 @@ public class MainActivity extends AppCompatActivity {
     }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+        ArrayList<MusicItem> ml;
+        MusicItem mi=null;
         switch (item.getItemId()) {
+            case R.id.top:
+                initItems(musiclist);
+                myItemsListAdapter.setList(items);;
+                myItemsListAdapter.notifyDataSetChanged();
+                return true;
             case R.id.server:
                 Intent intent = new Intent(this,Server.class);
                 startActivity(intent);
                 return  true;
             case R.id.album:
+                ml = new ArrayList<>();
+                for (MusicItem m:musiclist) {
+                    if(mi==null || !mi.album.equals(m.album)) {
+                        ml.add(m);
+                        mi=m;
+                    }
+                }
+                initItems(ml);
+                myItemsListAdapter.setList(items);;
+                myItemsListAdapter.notifyDataSetChanged();
                 return  true;
             case R.id.artist:
-                ArrayList<MusicItem> ml = new ArrayList<>();
-                MusicItem mi=null;
+                ml = new ArrayList<>();
                 for (MusicItem m:musiclist) {
                     if(mi==null || !mi.artist.equals(m.artist)) {
                         ml.add(m);
@@ -350,7 +389,22 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
+    @Override
+    protected void onResume(){
+        super.onResume();;
+        doCommand("search filename mp3");
+        if (rcvdata==null || rcvdata.equals("") ) {
+            Toast.makeText(MainActivity.this,
+                    "サーバーとの通信に失敗しています",
+                    Toast.LENGTH_LONG).show();
+            musiclist = new ArrayList<>();
+            MusicItem mi = new MusicItem("nofile.mp3","noname","noname","noname",0,0);
+            musiclist.add(mi);
+            initItems(musiclist);
+        } else {
+            initItems(initMusicList(rcvdata));
+        }
+    }
     private ArrayList<MusicItem> initMusicList(String rcvdata) {
         String fn = "";
         String art = "";
