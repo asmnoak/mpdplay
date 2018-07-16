@@ -16,6 +16,7 @@ import static jp.asmnoak.mpdplay.MainActivity.command;
 import static jp.asmnoak.mpdplay.MainActivity.ipaddr;
 import static jp.asmnoak.mpdplay.MainActivity.mpdport;
 import static jp.asmnoak.mpdplay.MainActivity.rcvdata;
+import static jp.asmnoak.mpdplay.MainActivity.rcvdata1;
 
 public class ComThread extends Thread {
     private Socket s;
@@ -23,6 +24,15 @@ public class ComThread extends Thread {
     public Handler revHandler;
     BufferedReader br = null;
     PrintWriter wr = null;
+    int rsw = 0;
+
+    ComThread(){
+        super();
+    }
+    ComThread(int rsw){
+        super();
+        this.rsw = rsw;
+    }
     @Override
     public void run() {
         try {
@@ -39,7 +49,11 @@ public class ComThread extends Thread {
                 if (rcv.equals("OK")) break;
                 st = st + rcv + ";";
             }
-            rcvdata = st;
+            if (rsw==0) {
+                rcvdata=st;
+            } else {
+                rcvdata1 = st;
+            }
         } catch (SocketTimeoutException e) {
             System.out.println("TIME OUT！！");
         } catch (SocketException e) {

@@ -1,6 +1,7 @@
 package jp.asmnoak.mpdplay;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -31,6 +32,13 @@ public class Server extends AppCompatActivity {
             public void onClick(View v) {
                 mpdport = (int)Integer.valueOf(edtPort.getText().toString());
                 ipaddr = edtIP.getText().toString();
+                SharedPreferences pref = getSharedPreferences("user_data", MODE_PRIVATE);
+                if (pref!=null) {  // save it
+                    SharedPreferences.Editor editor = pref.edit();
+                    editor.putInt("port", mpdport);
+                    editor.putString("ipaddr", ipaddr);
+                    editor.commit();
+                }
                 finish();
             }
         });
@@ -43,7 +51,7 @@ public class Server extends AppCompatActivity {
         shutButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                String url = "http://" + ipaddr + ":8000/bb/01/";
+                String url = "http://" + ipaddr + ":8000/bb/01/";  // uri of optional command server
                 Intent intent = new Intent(Intent.ACTION_VIEW);
                 intent.setData(Uri.parse(url));
                 startActivity(intent);

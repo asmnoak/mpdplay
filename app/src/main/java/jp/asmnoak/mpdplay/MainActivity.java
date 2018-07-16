@@ -3,6 +3,8 @@ package jp.asmnoak.mpdplay;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,14 +28,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    public static String command ;
-    public static String rcvdata;
-    public static String currsong;
-    public static ArrayList<MusicItem> musiclist;
-    public static Integer playing = 0;
-    public static int mpdport = 6600;
-    public static String ipaddr = "192.168.0.4";
+    public static String command ;                   // current mpd command
+    public static String rcvdata;                    // received data
+    public static String rcvdata1;                    // alternate received data
+    public static String currsong;                   // info of current song
+    public static  List<Item> lastlist;              // saved last list of listview
+    public static ArrayList<MusicItem> musiclist;    // checked music data which is candidate for playlist
+    public static Integer playing = 0;               // if 1 , playing music now
+    public static int mpdport = 6600;               // mpd server
+    public static String ipaddr = "192.168.0.3";  // mpd server
 
+    /**
+     *   item of listview
+     */
     public class Item {
         boolean checked;
         Drawable ItemDrawable;
@@ -43,7 +50,9 @@ public class MainActivity extends AppCompatActivity {
             ItemString = t;
             checked = b;
         }
-
+        void setChecked(boolean checked) {
+            this.checked = checked;
+        }
         public boolean isChecked(){
             return checked;
         }
@@ -55,6 +64,9 @@ public class MainActivity extends AppCompatActivity {
         TextView text;
     }
 
+    /**
+     *  Custom ItemsListAdapter
+     */
     public class ItemsListAdapter extends BaseAdapter {
 
         private Context context;
@@ -71,6 +83,10 @@ public class MainActivity extends AppCompatActivity {
         public void setList(List<Item> list){
             this.list = list;
         }
+        public List<Item> getList(){
+            return this.list;
+        }
+
         @Override
         public int getCount() {
             return list.size();
@@ -110,29 +126,12 @@ public class MainActivity extends AppCompatActivity {
 
             viewHolder.icon.setImageDrawable(list.get(position).ItemDrawable);
             viewHolder.checkBox.setChecked(list.get(position).checked);
-            //if(position==1){   ////
-                // 背景色を変える
-             //   rowView.setBackgroundColor(Color.rgb(255, 220, 127));
-            //}
 
             final String itemStr = list.get(position).ItemString;
             viewHolder.text.setText(itemStr);
 
             viewHolder.checkBox.setTag(position);
 
-            /*
-            viewHolder.checkBox.setOnCheckedChangeListener(
-                    new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
-                    list.get(position).checked = b;
-
-                    Toast.makeText(getApplicationContext(),
-                            itemStr + "onCheckedChanged\nchecked: " + b,
-                            Toast.LENGTH_LONG).show();
-                }
-            });
-            */
             viewHolder.text.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
@@ -165,7 +164,8 @@ public class MainActivity extends AppCompatActivity {
                 public void onClick(View view) {
                     boolean newState = !list.get(position).isChecked();
                     list.get(position).checked = newState;
-                    ////
+                    // save
+                    lastlist = list;
                      Toast.makeText(getApplicationContext(),
                             itemStr + "：チェック",
                             Toast.LENGTH_LONG).show();
@@ -199,6 +199,13 @@ public class MainActivity extends AppCompatActivity {
         switch (item.getItemId()) {
             case R.id.top:
                 initItems(musiclist);
+                if (lastlist!=null) {
+                    if (items.size() == lastlist.size()) {
+                        for (int i = 0; i < items.size(); i++) {
+                            items.get(i).setChecked(lastlist.get(i).checked);
+                        }
+                    }
+                }
                 myItemsListAdapter.setList(items);;
                 myItemsListAdapter.notifyDataSetChanged();
                 return true;
@@ -242,13 +249,19 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         setContentView(R.layout.activity_main);
         text = (TextView)findViewById(R.id.text);
         listView = (ListView)findViewById(R.id.listview);
         btnLookup = (Button)findViewById(R.id.lookup);
         pauseButton = (ImageButton)findViewById(R.id.pauseButton);
         playButton = (ImageButton)findViewById(R.id.playButton);
-        doCommand("search filename mp3");
+        SharedPreferences pref = getSharedPreferences("user_data", MODE_PRIVATE);
+        if (pref!=null) {
+            ipaddr = pref.getString("ipaddr","192.168.0.3");
+            mpdport = pref.getInt("port",6600);
+        }
+        doCommand("search filename mp3",0);
         if (rcvdata==null || rcvdata.equals("") ) {
             Toast.makeText(MainActivity.this,
                     "サーバーとの通信に失敗しています",
@@ -277,17 +290,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 playing = 0;
-                doCommand("pause");
-                doCommand("stop");
+                doCommand("pause",0);
+                doCommand("stop",0);
 
                 for (int i=0; i<items.size(); i++){
                     myItemsListAdapter.setChecked(i,false);
                 }
+                lastlist = myItemsListAdapter.getList();
                 myItemsListAdapter.notifyDataSetChanged();
-                //View rowview = myItemsListAdapter.getView(0,null,null);
-                //ViewHolder viewHolder = new ViewHolder();
-                //viewHolder.checkBox = (CheckBox) rowview.findViewById(R.id.rowCheckBox);
-                //viewHolder.checkBox.setChecked(false);
             }
         });
         playButton.setOnClickListener(new View.OnClickListener() {
@@ -296,27 +306,41 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 String str;
                 String[] sar;
-                doCommand("clear");
+                doCommand("clear",0);
                 for (int i=0; i<items.size(); i++){
                     if (items.get(i).isChecked()){
                         str = items.get(i).ItemString;
                         sar = str.split(":");
-                        doCommand("findadd title " + sar[2]);
+                        doCommand("findadd title " + sar[2],0);
                     }
                 }
-                doCommand("play");
+                doCommand("play",0);
                 Thread thread = new Thread(new Runnable() {
 
                     @Override
                     public void run() {
-                        playing = 1;
+                        playing = 1;    // indicate now playing
+                        int delay = 0;  // for reply delay
                         while (true) {
-                            doCommand("currentsong");
-                            if (rcvdata==null || rcvdata.equals("")) {
-                                // no playing song
+                            doCommand("currentsong",1);
+                            // check receive and pause
+                            while ((rcvdata1==null || rcvdata1.equals("")) && playing==1) {
+                                if (rcvdata1!=null) {
+                                    if (delay == 1 && rcvdata1.equals(""))
+                                        break;
+                                }
+                                doCommand("currentsong",1); // one more
+                                try {
+                                   Thread.sleep(500);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                            if(rcvdata1.split("file:")==null || rcvdata1.equals("") || playing==0) {
+                                // no playing song info
                                 playing = 0;
                             } else {
-                                String[] ml = rcvdata.split("file:");
+                                String[] ml = rcvdata1.split("file:");
                                 String[] ml2 = ml[1].split(";");
                                 currsong = ml2[0];
                                 String[] ml3;
@@ -343,7 +367,8 @@ public class MainActivity extends AppCompatActivity {
                                 });
                             }
                             try {
-                                Thread.sleep(2000);
+                                Thread.sleep(4000);
+                                delay = 1;
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -358,7 +383,6 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
                 thread.start();
-
             }
         });
 
@@ -373,26 +397,17 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
-                /*
-                int cnt = myItemsListAdapter.getCount();
-                for (int i=0; i<cnt; i++){
-                    if(myItemsListAdapter.isChecked(i)){
-                        str += i + "\n";
-                    }
-                }
-                */
-
-                Toast.makeText(MainActivity.this,
+                 Toast.makeText(MainActivity.this,
                         str,
                         Toast.LENGTH_LONG).show();
-
             }
         });
     }
     @Override
     protected void onResume(){
         super.onResume();;
-        doCommand("search filename mp3");
+        //List<Item> lastlist = myItemsListAdapter.getList();
+        doCommand("search filename mp3",0);
         if (rcvdata==null || rcvdata.equals("") ) {
             Toast.makeText(MainActivity.this,
                     "サーバーとの通信に失敗しています",
@@ -404,7 +419,22 @@ public class MainActivity extends AppCompatActivity {
         } else {
             initItems(initMusicList(rcvdata));
         }
+        if (lastlist!=null) {
+            if (items.size() == lastlist.size()) {
+                for (int i = 0; i < items.size(); i++) {
+                    items.get(i).setChecked(lastlist.get(i).checked);
+                }
+            }
+        }
+        myItemsListAdapter.setList(items);;
+        myItemsListAdapter.notifyDataSetChanged();
     }
+
+    /**
+     *  make Misic list
+     * @param rcvdata : mp3 song list on MPD server
+     * @return  List of Music item
+     */
     private ArrayList<MusicItem> initMusicList(String rcvdata) {
         String fn = "";
         String art = "";
@@ -437,17 +467,37 @@ public class MainActivity extends AppCompatActivity {
         return musiclist;
     }
 
-   synchronized  private void doCommand(String cm){
-        ComThread th = new ComThread();
+    /**
+     * send MPD command
+     * @param cm command
+     * @param rsw received data buf switch
+     */
+   synchronized  private void doCommand(String cm , int rsw){
+        ComThread th = new ComThread(rsw);
         command = cm;
-        rcvdata = null;
+        if (rsw==0) {
+            rcvdata = null;
+        } else {
+            rcvdata1 = null;
+        }
         th.start();
-        if (rcvdata==null) {
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+        if (rsw==0) {
+            if (rcvdata == null) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
             }
+        } else {
+            if (rcvdata1 == null) {
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+
         }
     }
 
@@ -460,9 +510,6 @@ public class MainActivity extends AppCompatActivity {
     private void initItems(ArrayList<MusicItem> musiclist){
         items = new ArrayList<Item>();
 
-        //TypedArray arrayDrawable = getResources().obtainTypedArray(R.array.resicon);
-        //TypedArray arrayText = getResources().obtainTypedArray(R.array.restext);
-
         for(int i=0; i<musiclist.size(); i++){
             Drawable drw;
             drw = getResources().getDrawable(R.drawable.icon_onpu_64);
@@ -471,9 +518,6 @@ public class MainActivity extends AppCompatActivity {
             Item item = new Item(drw, s, b);
             items.add(item);
         }
-
-        //arrayDrawable.recycle();
-        //arrayText.recycle();
     }
 }
 
