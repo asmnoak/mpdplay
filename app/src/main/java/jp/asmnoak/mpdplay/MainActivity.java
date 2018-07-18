@@ -34,6 +34,7 @@ public class MainActivity extends AppCompatActivity {
     public static String currsong;                   // info of current song
     public static  List<Item> lastlist;              // saved last list of listview
     public static ArrayList<MusicItem> musiclist;    // checked music data which is candidate for playlist
+    public static Integer listdmode = 0;             // display mode of listview. 0:all, 1:artist list, 2:album list, 3:an album
     public static Integer playing = 0;               // if 1 , playing music now
     public static int mpdport = 6600;               // mpd server
     public static String ipaddr = "192.168.0.3";  // mpd server
@@ -139,18 +140,29 @@ public class MainActivity extends AppCompatActivity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            //text.setText(itemStr);
-                            String[] sar = itemStr.split(":");
-                            String str = sar[1];
                             ArrayList<MusicItem> ml = new ArrayList<>();
-                            for (MusicItem m:musiclist) {
-                                if(str.equals(m.album)) {
-                                    ml.add(m);
+                            String[] sar = itemStr.split(":");
+                            if (listdmode==2) {
+                                String str = sar[1];
+                               for (MusicItem m : musiclist) {
+                                    if (str.equals(m.album)) {
+                                        ml.add(m);
+                                    }
+                                }
+                            } else if (listdmode==1) {
+                                String str = sar[0];
+                                for (MusicItem m : musiclist) {
+                                    if (str.equals(m.artist)) {
+                                        ml.add(m);
+                                    }
                                 }
                             }
-                            initItems(ml);
-                            myItemsListAdapter.setList(items);;
-                            myItemsListAdapter.notifyDataSetChanged();
+                            if (listdmode==2 || listdmode==1) {
+                                listdmode = 3;
+                                initItems(ml);
+                                myItemsListAdapter.setList(items);
+                                myItemsListAdapter.notifyDataSetChanged();
+                            }
                         }
                     });
                     Toast.makeText(getApplicationContext(),
@@ -198,6 +210,7 @@ public class MainActivity extends AppCompatActivity {
         MusicItem mi=null;
         switch (item.getItemId()) {
             case R.id.top:
+                listdmode = 0;
                 initItems(musiclist);
                 if (lastlist!=null) {
                     if (items.size() == lastlist.size()) {
@@ -214,6 +227,7 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
                 return  true;
             case R.id.album:
+                listdmode = 2;
                 ml = new ArrayList<>();
                 for (MusicItem m:musiclist) {
                     if(mi==null || !mi.album.equals(m.album)) {
@@ -226,11 +240,23 @@ public class MainActivity extends AppCompatActivity {
                 myItemsListAdapter.notifyDataSetChanged();
                 return  true;
             case R.id.artist:
+                listdmode = 1;
                 ml = new ArrayList<>();
                 for (MusicItem m:musiclist) {
-                    if(mi==null || !mi.artist.equals(m.artist)) {
+                    MusicItem mii = null;
+                    if(mi==null) {
                         ml.add(m);
                         mi=m;
+                    } else {
+                        int i;
+                        for (i=0;i<ml.size();i++) {
+                            if(ml.get(i).artist.equals(m.artist)) {
+                                break;
+                            };
+                        }
+                        if (i>=ml.size()) {
+                            ml.add(m);
+                        }
                     }
                 }
                 initItems(ml);
@@ -426,6 +452,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+        listdmode = 0;
         myItemsListAdapter.setList(items);;
         myItemsListAdapter.notifyDataSetChanged();
     }
