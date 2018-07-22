@@ -33,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
     public static String rcvdata1;                    // alternate received data
     public static String currsong;                   // info of current song
     public static  List<Item> lastlist;              // saved last list of listview
+    public static  List<Item> lastlist_al;           // saved last list(album) of listview
     public static ArrayList<MusicItem> musiclist;    // checked music data which is candidate for playlist
     public static Integer listdmode = 0;             // display mode of listview. 0:all, 1:artist list, 2:album list, 3:an album
     public static Integer playing = 0;               // if 1 , playing music now
@@ -160,6 +161,7 @@ public class MainActivity extends AppCompatActivity {
                             if (listdmode==2 || listdmode==1) {
                                 listdmode = 3;
                                 initItems(ml);
+                                lastlist_al = items;  //save
                                 myItemsListAdapter.setList(items);
                                 myItemsListAdapter.notifyDataSetChanged();
                             }
@@ -431,28 +433,32 @@ public class MainActivity extends AppCompatActivity {
     }
     @Override
     protected void onResume(){
-        super.onResume();;
-        //List<Item> lastlist = myItemsListAdapter.getList();
-        doCommand("search filename mp3",0);
-        if (rcvdata==null || rcvdata.equals("") ) {
-            Toast.makeText(MainActivity.this,
-                    "サーバーとの通信に失敗しています",
-                    Toast.LENGTH_LONG).show();
-            musiclist = new ArrayList<>();
-            MusicItem mi = new MusicItem("nofile.mp3","noname","noname","noname",0,0);
-            musiclist.add(mi);
-            initItems(musiclist);
+        super.onResume();
+        if (listdmode==3 && lastlist_al!=null ) { // last is album mode
+            items=lastlist_al;
         } else {
-            initItems(initMusicList(rcvdata));
-        }
-        if (lastlist!=null) {
-            if (items.size() == lastlist.size()) {
-                for (int i = 0; i < items.size(); i++) {
-                    items.get(i).setChecked(lastlist.get(i).checked);
+            //List<Item> lastlist = myItemsListAdapter.getList();
+            doCommand("search filename mp3", 0);
+            if (rcvdata == null || rcvdata.equals("")) {
+                Toast.makeText(MainActivity.this,
+                        "サーバーとの通信に失敗しています",
+                        Toast.LENGTH_LONG).show();
+                musiclist = new ArrayList<>();
+                MusicItem mi = new MusicItem("nofile.mp3", "noname", "noname", "noname", 0, 0);
+                musiclist.add(mi);
+                initItems(musiclist);
+            } else {
+                initItems(initMusicList(rcvdata));
+            }
+            if (lastlist != null) {
+                if (items.size() == lastlist.size()) {
+                    for (int i = 0; i < items.size(); i++) {
+                        items.get(i).setChecked(lastlist.get(i).checked);
+                    }
                 }
             }
+            listdmode = 0;
         }
-        listdmode = 0;
         myItemsListAdapter.setList(items);;
         myItemsListAdapter.notifyDataSetChanged();
     }
