@@ -27,4 +27,4 @@ SONYのh.ear goにUSB接続しています。特別なドライバーは不要�
 <br>
 <h3>メニューのサーバー設定</h3>
 サーバーをシャットダウンさせるボタンがあります。
-<img src="mpdplay02.jpg"　width="128" height="220"><br>
+<img src="mpdplay02.jpg"　width="256" height="480"><br>
